@@ -51,15 +51,15 @@ def measurement_index( i, j, K):
     Return:
     The serial index of the measurement (i,j).
     '''
-    return (i+1)*K - i*(i+3)/2 + j - 1
+    return int((i+1)*K - i*(i+3)/2 + j - 1)
 
 def sum_upper_triangle( x):
     '''
     Return the sum of the upper triangle elements of the square matrix x.
     '''
     s = 0.
-    for i in xrange( x.size[0]):
-        for j in xrange( i, x.size[1]):
+    for i in range( x.size[0]):
+        for j in range( i, x.size[1]):
             s += x[i,j]
     return s
 
@@ -69,13 +69,13 @@ def solution_to_nij( sol, K):
     CVXOPT solution.
     '''
     if sol['status'] != 'optimal':
-        raise ValueError, sol['status']
+        raise ValueError(sol['status'])
     x = sol['x']
     # print x
     n = matrix( 0., (K, K))
-    for i in xrange(K):
+    for i in range(K):
         n[i,i] = x[i]
-        for j in xrange(i+1, K):
+        for j in range(i+1, K):
             m = measurement_index( i, j, K)
             n[i,j] = n[j,i] = x[m]
     return n
@@ -102,44 +102,45 @@ def lndetC( sij, x, hessian=False):
     K = sij.size[0]
     M = K*(K+1)/2
     F = matrix( 0., (K, K))
-    for i in xrange( K):
+    for i in range( K):
         # n_{ii}*v_{ii}.v_{ii}^t
         F[i,i] += x[i]/(sij[i,i]*sij[i,i])
-        for j in xrange( i+1, K):
-            m = measurement_index( i, j, K)
+        for j in range( i+1, K):
+            m = int(measurement_index( i, j, K))
             v2 = x[m]/(sij[i,j]*sij[i,j])
             F[i,i] += v2
             F[j,j] += v2
             F[i,j] = F[j,i] = -v2
     C = linalg.inv( F)
     fval = -np.log(linalg.det( F))
+    M = int(M)
     df = matrix( 0., (1, M))
-    for i in xrange( K):
+    for i in range( K):
         df[i] = -C[i,i]/(sij[i,i]*sij[i,i])
-        for j in xrange( i+1, K):
-            m = measurement_index( i, j, K)
+        for j in range( i+1, K):
+            m = int(measurement_index( i, j, K))
             df[m] = (2*C[i,j] - C[i,i] - C[j,j])/(sij[i,j]*sij[i,j])
     if not hessian: 
         return (fval, df)
     # Compute the Hessian
     d2f = matrix( 0., (M, M))
-    for i in xrange( K):
-        for j in xrange( i, K):
+    for i in range( K):
+        for j in range( i, K):
             # d^2/dx_i dx_j = C_{ij}^2/(s_{ii}^2 s_{jj}^2)
             d2f[i, j] = C[i,j]*C[i,j]/(sij[i,i]*sij[i,i]*sij[j,j]*sij[j,j])
             d2f[j, i] = d2f[i, j]
-        for i2 in xrange( K):
-            for j2 in xrange( i2+1, K):
+        for i2 in range( K):
+            for j2 in range( i2+1, K):
                 m2 = measurement_index( i2, j2, K)
                 # d^2/dx_id_x(i',j') = (C_{ii'}-C_{ji'})^2/(s_{i'i'}^2 s_{ij}^2)
                 dC = C[i2,i] - C[j2,i]
                 d2f[i, m2] = dC*dC/(sij[i,i]*sij[i,i]*sij[i2,j2]*sij[i2,j2])
                 d2f[m2, i] = d2f[i, m2]
-        for j in xrange( i+1, K):
+        for j in range( i+1, K):
             m = measurement_index( i, j, K)
             invs2 = 1/(sij[i,j]*sij[i,j])
-            for i2 in xrange( i, K):
-                for j2 in xrange( i2+1, K):
+            for i2 in range( i, K):
+                for j2 in range( i2+1, K):
                     m2 = measurement_index( i2, j2, K)
                     # d^2/dx_{ij}dx_{i'j'} = 
                     # (C_{ii'}+C_{jj'}-C_{ji'}-C_{ij'})^2/(s_{i'j'}^2 s_{ij}^2)
@@ -177,9 +178,9 @@ def D_optimize( sij):
 
     def F( x=None, z=None):
         if x is None:
-            x0 = matrix( [ sij[i,i] for i in xrange( K) ] + 
-                         [ sij[i,j] for i in xrange( K) 
-                           for j in xrange( i+1, K) ], (M, 1))
+            x0 = matrix( [ sij[i,i] for i in range( K) ] + 
+                         [ sij[i,j] for i in range( K) 
+                           for j in range( i+1, K) ], (M, 1))
             return (0, x0)
         if z is None:
             return lndetC( sij, x)
@@ -187,6 +188,7 @@ def D_optimize( sij):
         return (f, df, z[0]*d2f)
 
     # The constraint n_m >= 0, formulated as G.x <= h
+    M = int(M)
     G = matrix( np.diag( -np.ones( M)))
     h = matrix( np.zeros( M))
 
@@ -225,7 +227,7 @@ def A_optimize( sij):
     # programming (SDP) problem.
     assert( sij.size[0] == sij.size[1])
     K = sij.size[0]
-    M = K*(K+1)/2
+    M = int(K*(K+1)/2)
     # x = ( n, u ), where u=(u_1,u_2,...,u_K) is the dual variables.
     # We will minimize \sum_k u_k = c.x
     c = matrix( [0.]*M + [1.]*K )
@@ -248,14 +250,14 @@ def A_optimize( sij):
     # G matrix, of dimension ((K+1)*(K+1), (M+K)).  Each column is a
     # column-major vector representing the KxK matrix of U_m augmented
     # by a length K vector, hence the dimension (K+1)x(K+1).
-    Gs = [ matrix( 0., ((K+1)*(K+1), (M+K))) for k in xrange( K) ]
-    hs = [ matrix( 0., (K+1, K+1)) for k in xrange( K) ]
+    Gs = [ matrix( 0., ((K+1)*(K+1), (M+K))) for k in range( K) ]
+    hs = [ matrix( 0., (K+1, K+1)) for k in range( K) ]
     
-    for i in xrange( K):
+    for i in range(K):
         # The index of matrix element (i,i) in column-major representation
         # of a (K+1)x(K+1) matrix is i*(K+1 + 1) 
         Gs[0][i*(K+2), i] = 1./(sij[i,i]*sij[i,i])
-        for j in xrange( i+1, K):
+        for j in range(i+1, K):
             m = measurement_index( i, j, K)
             # The index of matrix element (i,j) in column-major representation
             # of a (K+1)x(K+1) matrix is j*(K+1) + i
@@ -266,7 +268,7 @@ def A_optimize( sij):
     # G.(x, u) + e >=0 <=> -G.(x, u) <= e
     Gs[0] *= -1.
 
-    for k in xrange( K):
+    for k in range(K):
         if (k>0): Gs[k][:,:M] = Gs[0][:,:M]
         # for the term u_k [ [0, 0], [0, 1] ]
         Gs[k][-1, M+k] = -1.
@@ -323,12 +325,12 @@ def E_optimize( sij):
     
     # G matrix, of dimension (K*K, M+1).
     # G[i*K + j] = (v_m.v_m^t)[i,j]
-    G = matrix( 0., (K*K, M+1))
-    h = matrix( 0., (K, K))
-    for i in xrange( K):
+    G = matrix(0., (K*K, M+1))
+    h = matrix(0., (K, K))
+    for i in range(K):
         G[i*(K+1), i] = 1./(sij[i,i]*sij[i,i])
         G[i*(K+1), M] = 1.  # The column-major identity matrix for t.
-        for j in xrange( i+1, K):
+        for j in range(i+1, K):
             m = measurement_index( i, j, K)
             v2 = 1./(sij[i,j]*sij[i,j])
             G[j*K + i, m] = G[i*K + j, m] = -v2
@@ -368,7 +370,7 @@ def Dijkstra_shortest_path( sij):
 
     while q:
         d, u = heapq.heappop( q)
-        for v in xrange( K):
+        for v in range(K):
             suv = sij[u,v] if u != K else sij[v,v]
             dp = d + suv
             if dp < dist[v]:
@@ -408,7 +410,7 @@ def E_optimal_tree( sij):
     # For each node, compute \sum_{j \elem T_i} a_j, where j runs over
     # the set of nodes in the subtree T_i rooted at i, including i itself.
     suma = np.zeros( K, dtype=float)
-    for v in xrange( K):
+    for v in range(K):
         suma[v] += a[v]
         u = prev[v]
         # Follow up the tree until the root at the origin
@@ -418,7 +420,7 @@ def E_optimal_tree( sij):
 
     # n_{i\mu_i} = s_{i\mu_i} \lambda \sum_{j\elem T_i} a_j
     nij = matrix( 0., (K, K))
-    for i in xrange( K):
+    for i in range(K):
         j = prev[i]
         if j!=K: # not the origin
             nij[i,j] = sij[i,j]*suma[i]
@@ -555,7 +557,7 @@ def covariance( sij, nij):
     K = sij.size[0]
     f = cvxopt.mul( nij, cvxopt.div( 1., sij)**2)
     F = np.diag( np.sum(f, axis=1) ) 
-    for k in xrange(K): f[k,k] = 0
+    for k in range(K): f[k,k] = 0
     F -= f
     C = linalg.inv( F)
     return C
@@ -572,8 +574,8 @@ def check_optimality( sij, nij, optimality='A', delta=1E-1, ntimes=10):
         E = np.max( linalg.eig( C)[0]).real,
         Etree = np.max( linalg.eig( C)[0]).real
     )
-    df = np.zeros( ntimes)
-    for t in xrange( ntimes):
+    df = np.zeros(ntimes)
+    for t in range(ntimes):
         zeta = matrix( 1. + 2*delta*(np.random.rand(  K, K) - 0.5))
         nijp = cvxopt.mul( nij, zeta)
         nijp = 0.5*(nijp + nijp.trans()) # Symmetrize
@@ -587,7 +589,6 @@ def check_optimality( sij, nij, optimality='A', delta=1E-1, ntimes=10):
         elif (optimality=='E' or optimality=='Etree'):
             fCp = np.max( linalg.eig( Cp)[0]).real
         df[t] = fCp - fC[optimality]
-    print df
     return np.all( df >= 0)
 
 def check_hessian( dF, d2F, x0):
@@ -603,10 +604,10 @@ def check_hessian( dF, d2F, x0):
 
     N = len(x0)
     esqr = 0.
-    for i in xrange( N):
-        def func( x):
+    for i in range(N):
+        def func(x):
             return dF(x)[i]
-        def dfunc( x):
+        def dfunc(x):
             return d2F(x)[i,:]
         e = check_grad( func, dfunc, x0)
         esqr += e*e
@@ -619,21 +620,21 @@ def fabricate_measurements( K=10, sigma=0.1, noerror=True, disconnect=False):
     invsij2 = 0.5*(invsij2 + np.transpose( invsij2))
     sij = np.sqrt( 1./invsij2)
     if noerror: sij *= 0.
-    for i in xrange(K):
+    for i in range(K):
         xij[i][i] = x0[i]
-        for j in xrange(i+1, K):
+        for j in range(i+1, K):
             xij[i][j] = x0[i] - x0[j] + sij[i][j]*(np.random.rand() - 0.5)
             xij[j][i] = -xij[i][j]
 
     if (disconnect >= 1):
         # disconnect the origin and thus eliminate the individual measurements
-        for i in xrange(K): invsij2[i][i] = 0
+        for i in range(K): invsij2[i][i] = 0
     if (disconnect >= 2):
         # disconnect the network into the given number of disconnected
         # components.
-        for i in xrange( K):
+        for i in range(K):
             c1 = i % disconnect
-            for j in xrange( i+1, K):
+            for j in range(i+1, K):
                 c2 = j % disconnect
                 if (c1 != c2):
                     invsij2[i][j] = invsij2[j][i] = 0
@@ -681,48 +682,48 @@ def unitTest( tol=1.e-4):
     
     x0 = np.random.rand( K*(K+1)/2)
     err = check_grad( F, dF, x0)
-    print 'Gradient check for ln(det(C)) error=%g:' % err,
+    print('Gradient check for ln(det(C)) error=%g:' % err)
     if (err < tol):
-        print 'Passed!'
+        print('Passed!')
     else:
-        print 'Failed!'
+        print('Failed!')
 
     err = check_hessian( dF, d2F, x0)
-    print 'Hessian check for ln(det(C)) error=%g:' % err,
+    print('Hessian check for ln(det(C)) error=%g:' % err)
     if (err < tol):
-        print 'Passed!'
+        print('Passed!')
     else:
-        print 'Failed!'
+        print('Failed!')
 
-    print 'Testing ML estimator'
+    print('Testing ML estimator')
     for disconnect, label in [
             (False, 'Full-rank'), 
             (1, 'No individual measurement'), 
             (2, '2-disconnected') ]:
         err = check_MLest( K, disconnect=disconnect)
-        print '%s: RMSE( x0, xML) = %g' % (label, err),
+        print('%s: RMSE( x0, xML) = %g' % (label, err))
         if (err < tol): 
-            print 'Passed!'
+            print('Passed!')
         else:
-            print 'Failed!'
+            print('Failed!')
 
     results = optimize( sij)
     for o in [ 'D', 'A', 'E', 'Etree' ]:
         nij = results[o]
         C = covariance( sij, nij)
-        print '%s-optimality' % o
-        print 'n (sum=%g):' % sum_upper_triangle( nij)
-        print nij
+        print('%s-optimality' % o)
+        print('n (sum=%g):' % sum_upper_triangle( nij))
+        print(nij)
         D = np.log(linalg.det( C))
         A = np.trace( C)
         E = np.max(linalg.eig(C)[0]).real
-        print 'C: (ln(det(C))=%.4f; tr(C)=%.4f; max(eig(C))=%.4f)' % \
-            ( D, A, E )
-        print C
+        print('C: (ln(det(C))=%.4f; tr(C)=%.4f; max(eig(C))=%.4f)' % \
+            ( D, A, E ))
+        print(C)
         if (check_optimality( sij, nij, o)):
-            print '%s-optimality check passed!' % o
+            print('%s-optimality check passed!' % o)
         else:
-            print '%s-optimality check failed!' % o
+            print('%s-optimality check failed!' % o)
         
 if __name__ == '__main__':
     unitTest()
