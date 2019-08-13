@@ -4,8 +4,6 @@ DiffNet
 [![Travis Build Status](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/DiffNet.png)](https://travis-ci.org/REPLACE_WITH_OWNER_ACCOUNT/DiffNet)
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/DiffNet/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/DiffNet/branch/master)
 
-DiffNet
-
 ### Copyright
 
 DiffNet is a Python tool for finding optimal allocations of sampling
